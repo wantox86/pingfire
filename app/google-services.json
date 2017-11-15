@@ -1,0 +1,42 @@
+{
+  "project_info": {
+    "project_number": "49283742778",
+    "firebase_url": "https://pingfire-724ad.firebaseio.com",
+    "project_id": "pingfire-724ad",
+    "storage_bucket": "pingfire-724ad.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:49283742778:android:298ff6885b452318",
+        "android_client_info": {
+          "package_name": "com.wsoft.pingfire"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "49283742778-464tft4ig9gmvnc597n58v601frtjcgj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDUvoXOCWaem62uHlxJa865y2BVrZAoDHU"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
