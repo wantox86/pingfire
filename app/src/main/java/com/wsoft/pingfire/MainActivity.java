@@ -1,7 +1,9 @@
 package com.wsoft.pingfire;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.SharedPreferences;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -16,9 +18,6 @@ import android.util.Log;
 
 import com.google.firebase.iid.FirebaseInstanceId;
 import com.wsoft.pingfire.lib.HTTPUrlConn;
-import com.wsoft.pingfire.utils.CommonHelper;
-
-import static com.wsoft.pingfire.utils.CommonConst.*;
 
 import org.json.JSONObject;
 
@@ -32,15 +31,31 @@ public class MainActivity extends AppCompatActivity {
     public static final String strUrl = "http://156.67.218.127:9004/ws/regtoken?";
     public static final String strUrlSendPing = "http://156.67.218.127:9004/ws/sendpush?";
     public static Context appContext;
-    TextView textView;
+    public TextView tvPingID;
+    public EditText edRecv;
+    public EditText edMsgSend;
+    public EditText edMsgLog;
+
+    @Override
+    protected void onResume()
+    {
+        super.onResume();
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction("com.wsoft.pingfire.onMessageReceived");
+        MyBroadcastReceiver receiver = new MyBroadcastReceiver();
+        registerReceiver(receiver, intentFilter);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         appContext = getApplicationContext();
+        /*
+            Create Channel Notification
+         */
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            // Create channel to show notifications.
+
             String channelId  = "fcm_default_channel";
             String channelName = "News";
             NotificationManager notificationManager =
@@ -54,9 +69,22 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(TAG, "Key: " + key + " Value: " + value);
             }
         }
-        textView = (TextView) findViewById(R.id.txtVPingID);
-        textView.setTextSize(36);
-        textView.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
+        /*
+        Custom Config UI
+         */
+        tvPingID = (TextView) findViewById(R.id.txtVPingID);
+        tvPingID.setTextSize(36);
+        tvPingID.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
+
+        edMsgLog = (EditText) findViewById(R.id.editTextMsg);
+        edMsgLog.setEnabled(false);
+        edMsgLog.setTextSize(12);
+
+        edRecv = (EditText) findViewById(R.id.editTPingIDDest);
+        edMsgSend = (EditText) findViewById(R.id.editTextSend);
+        /*
+            Pooling for get Ping ID, retry for 3 times
+         */
         int retry = 0;
         try
         {
@@ -82,18 +110,45 @@ public class MainActivity extends AppCompatActivity {
         }
         catch (Exception e)
         {
-            Toast.makeText(getApplicationContext(), CommonHelper.getStackTraceAsString(e), Toast.LENGTH_LONG).show();
+            Log.v(TAG, Log.getStackTraceString(e));
         }
 
     }
 
-
-    public void onClickRegisterID(View view)
+    /*
+        Handler for button Send Ping
+     */
+    public void onClickSendPing(View view)
     {
-        EditText edRecv = (EditText) findViewById(R.id.editText2);
-        new SendPing(this, textView.getText().toString(), edRecv.getText().toString()).execute();
+
+        new SendPing(this,
+                tvPingID.getText().toString(),
+                edRecv.getText().toString(),
+                edMsgSend.getText().toString(),
+                edMsgSend,
+                edMsgLog).execute();
     }
 
+    /*
+        Handler show message from notif to edittextMsg
+    */
+    private class MyBroadcastReceiver extends BroadcastReceiver
+    {
+        @Override
+        public void onReceive(Context context, Intent intent)
+        {
+            Bundle extras = intent.getExtras();
+            String body = extras.getString("fcm.body");
+            String titles = extras.getString("fcm.title");
+//            Toast.makeText(getApplicationContext(), "Found Broadcast Msg " + titles + " - "+ body, Toast.LENGTH_LONG).show();
+            edMsgLog.setText(edMsgLog.getText() + "\n" + titles + " - "+ body);
+        }
+    }
+
+    /*
+        Private Class for retrive Ping ID for this user from server
+        calling by pooling onCreate
+     */
     private class RetrivePingID extends AsyncTask<String, Void, Hashtable>
     {
         private Context context;
@@ -126,7 +181,7 @@ public class MainActivity extends AppCompatActivity {
             }
             catch (Exception e)
             {
-                Toast.makeText(getApplicationContext(), CommonHelper.getStackTraceAsString(e),Toast.LENGTH_LONG).show();
+                Log.v(TAG, Log.getStackTraceString(e));
             }
 
             return hashReply;
@@ -139,29 +194,38 @@ public class MainActivity extends AppCompatActivity {
                 String textDisplay = "Success Connect to Server";
                 JSONObject replyJson = (JSONObject) hashReply.get(kHttp_Reply_JSon);
                 String pingID = replyJson.getJSONObject("data").getString("ping_id");
-                textView.setText(pingID);
+                tvPingID.setText(pingID);
                 Toast.makeText(getApplicationContext(),textDisplay,Toast.LENGTH_LONG).show();
             }
             catch (Exception e)
             {
-                Toast.makeText(getApplicationContext(), CommonHelper.getStackTraceAsString(e),Toast.LENGTH_LONG).show();
+                Log.v(TAG, Log.getStackTraceString(e));
             }
 
         }
     }
 
-
+    /*
+        Private Class for Send Ping to Server
+        trigger by Click Button Send
+     */
     private class SendPing extends AsyncTask<String, Void, Hashtable>
     {
         private Context context;
         private String pingIDSender;
         private String pingIDReceiver;
+        private String pingMsgToSend;
+        private EditText etMsgToSend;
+        private EditText etMsgLog;
         Hashtable hashReply = new Hashtable();
-        public SendPing(Context c, String pingSender, String pingRecv)
+        public SendPing(Context c, String pingSender, String pingRecv, String pingMsg, EditText etMsg, EditText etLog)
         {
             this.context = c;
             this.pingIDSender = pingSender;
             this.pingIDReceiver = pingRecv;
+            this.pingMsgToSend = pingMsg;
+            this.etMsgToSend = etMsg;
+            this.etMsgLog = etLog;
         }
         String respServer = new String();
 
@@ -179,6 +243,7 @@ public class MainActivity extends AppCompatActivity {
                 Hashtable reqMap = new Hashtable();
                 reqMap.put("ping_id", pingIDReceiver);
                 reqMap.put("sender_id", pingIDSender);
+                reqMap.put("msg", pingMsgToSend);
 
                 HTTPUrlConn httpUrlConn = new HTTPUrlConn();
                 hashReply = httpUrlConn.processHttpPost(strUrlSendPing, reqMap);
@@ -186,7 +251,7 @@ public class MainActivity extends AppCompatActivity {
             }
             catch (Exception e)
             {
-                Toast.makeText(getApplicationContext(), CommonHelper.getStackTraceAsString(e),Toast.LENGTH_LONG).show();
+                Log.v(TAG, Log.getStackTraceString(e));
             }
 
             return hashReply;
@@ -200,6 +265,8 @@ public class MainActivity extends AppCompatActivity {
                 String resp = replyJson.getJSONObject("resp").getString("response.code");
                 if(resp.equalsIgnoreCase("0"))
                 {
+                    etMsgLog.setText(etMsgLog.getText() + "\n" + etMsgToSend.getText());
+                    etMsgToSend.setText("");
                     Toast.makeText(getApplicationContext(),"Success send ping to " + pingIDReceiver,Toast.LENGTH_LONG).show();
                 }
                 else
@@ -210,9 +277,8 @@ public class MainActivity extends AppCompatActivity {
             }
             catch (Exception e)
             {
-                Toast.makeText(getApplicationContext(), CommonHelper.getStackTraceAsString(e),Toast.LENGTH_LONG).show();
+                Log.v(TAG, Log.getStackTraceString(e));
             }
-
         }
     }
 }

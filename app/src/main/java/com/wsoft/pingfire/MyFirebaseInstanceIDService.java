@@ -7,9 +7,8 @@ import java.util.Hashtable;
 import com.wsoft.pingfire.lib.HTTPUrlConn;
 import static com.wsoft.pingfire.utils.CommonConst.*;
 import org.json.JSONObject;
+import android.util.Log;
 
-import android.content.SharedPreferences;
-import android.widget.Toast;
 
 /**
  * Created by lia on 14/11/17.
@@ -47,7 +46,7 @@ public class MyFirebaseInstanceIDService extends FirebaseInstanceIdService
         }
         catch (Exception e)
         {
-
+            Log.v(TAG, Log.getStackTraceString(e));
         }
     }
 }

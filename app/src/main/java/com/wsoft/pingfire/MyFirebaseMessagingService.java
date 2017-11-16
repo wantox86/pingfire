@@ -44,13 +44,21 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
     }
     //This method is only generating push notification
     //It is same as we did in earlier posts
-    private void sendNotification(Map data) {
+    private void sendNotification(Map data)
+    {
         String msgTitle = (String) data.get("title");
         String msgBody = (String) data.get("body");
         Intent intent = new Intent(this, MainActivity.class);
+
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent,
                 PendingIntent.FLAG_ONE_SHOT);
+
+        Intent intentBroadCast = new Intent();
+        intentBroadCast.putExtra("fcm.title", msgTitle);
+        intentBroadCast.putExtra("fcm.body", msgBody);
+        intentBroadCast.setAction("com.wsoft.pingfire.onMessageReceived");
+        sendBroadcast(intentBroadCast);
 
         Uri defaultSoundUri= RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
         NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this)
